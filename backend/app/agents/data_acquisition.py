@@ -52,17 +52,26 @@ def acquire_data(task_spec: dict, run_id: str = "default") -> dict:
         
     df = pd.DataFrame(data)
     
-    # Generate the target intelligently
+    # Generate the target intelligently with added noise to prevent 100% perfect models
     if task_type == 'classification':
         if 'transaction_amount' in df.columns:
-            df[target] = (df['transaction_amount'] > 200).astype(int)
+            base_target = (df['transaction_amount'] > 200).astype(int)
+            # Flip 10% of the labels to simulate real-world noise (prevents 1.0 accuracy)
+            noise = np.random.choice([0, 1], size=150, p=[0.90, 0.10])
+            df[target] = base_target ^ noise
         else:
-            df[target] = np.random.choice([0, 1], 150)
+            # For random choice, add a slight bias based on a feature to give it *some* signal
+            base = (df[df.columns[1]] > df[df.columns[1]].median()).astype(int)
+            noise = np.random.choice([0, 1], size=150, p=[0.85, 0.15])
+            df[target] = base ^ noise
     else: # regression
         if 'square_footage' in df.columns:
-            df[target] = df['square_footage'] * 150 + np.random.randn(150) * 10000
+            # Increase noise drastically so R2 is realistic (~0.8-0.9) instead of 0.999
+            df[target] = df['square_footage'] * 150 + np.random.randn(150) * 80000
         else:
-            df[target] = df[df.columns[1]] * 2.5 + np.random.randn(150)
+            # Multiply by standard deviation to scale noise appropriately
+            feature_std = df[df.columns[1]].std()
+            df[target] = df[df.columns[1]] * 2.5 + np.random.randn(150) * feature_std * 2.0
             
     log_agent_thought(run_id, "DATA_ACQ", f"-> Generated {len(df)} rows and {len(df.columns)} columns.", delay=0.8)
 
