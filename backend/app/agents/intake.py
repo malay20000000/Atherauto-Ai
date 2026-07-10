@@ -37,7 +37,8 @@ def get_intake_agent():
     if os.getenv("GOOGLE_API_KEY"):
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
-            llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0, max_retries=1, timeout=10)
+            # Use the latest alias to ensure compatibility with all API keys and regions
+            llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", temperature=0, max_retries=1, timeout=10)
         except ImportError:
             pass
             

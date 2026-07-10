@@ -53,11 +53,14 @@ class Artifact(Base):
     run = relationship("Run", back_populates="artifacts")
 
 # Database setup
-DATABASE_URL = "sqlite:///./aao.db"
-# Ensure the directory exists if we move this file, but since it's local we just use local dir.
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./aao.db")
+
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False, "timeout": 30}
 
 engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False}
+    DATABASE_URL, connect_args=connect_args
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

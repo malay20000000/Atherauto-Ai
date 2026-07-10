@@ -101,7 +101,7 @@ def execute_real_pipeline(run_id: str, problem_statement: str, dataset_path: Opt
                                     state[f"{name.lower().replace(' ', '_')}_decision"] = json.load(f)
                             log_run(run_id, f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ▶️ APPROVED: Human intervened. Resuming pipeline!\n")
                             break
-                        time.sleep(1)
+                        time.sleep(3)
                         
                     if name == 'Cleaning':
                         result = node_func(state)
