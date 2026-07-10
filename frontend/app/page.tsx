@@ -4,6 +4,18 @@ import HeroSection from './components/HeroSection';
 
 type Stage = { name: string; status: string; };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+const getWsUrl = (runId: string) => {
+  try {
+    const url = new URL(API_URL);
+    const protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${url.host}/api/runs/${runId}/ws`;
+  } catch (e) {
+    return `ws://127.0.0.1:8000/api/runs/${runId}/ws`;
+  }
+};
+
 export default function Home() {
   const [runId, setRunId] = useState<string | null>(null);
   const [showConfig, setShowConfig] = useState(false);
@@ -38,7 +50,7 @@ export default function Home() {
 
   useEffect(() => {
     if (isComplete && runId && !finalMetrics) {
-      fetch(`http://127.0.0.1:8000/api/runs/${runId}/metrics`)
+      fetch(`${API_URL}/api/runs/${runId}/metrics`)
         .then(res => res.json())
         .then(data => setFinalMetrics(data))
         .catch(e => console.error("Metrics not ready yet", e));
@@ -55,7 +67,7 @@ export default function Home() {
       formData.append("problem_statement", problemStatement);
       if (datasetFile) formData.append("dataset", datasetFile);
 
-      const res = await fetch("http://127.0.0.1:8000/api/runs", {
+      const res = await fetch(`${API_URL}/api/runs`, {
         method: "POST",
         body: formData
       });
@@ -65,10 +77,11 @@ export default function Home() {
         setRunId(data.run_id);
         setIsPolling(true);
       } else {
-        alert("Failed to start run.");
+        alert("Failed to start run. The server responded with an error.");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      alert(`Network Error: ${e.message}\n\nIf you are on a phone, ensure NEXT_PUBLIC_API_URL is set in Vercel to point to your Render backend, then redeploy.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -82,7 +95,7 @@ export default function Home() {
         opts.headers = { "Content-Type": "application/json" };
         opts.body = JSON.stringify({ decision });
       }
-      await fetch(`http://127.0.0.1:8000/api/runs/${runId}/stage/${stageName}/approve`, opts);
+      await fetch(`${API_URL}/api/runs/${runId}/stage/${stageName}/approve`, opts);
       if (stageName === 'Profiling') setEdaData(null);
     } catch (e) {
       console.error(e);
@@ -91,7 +104,7 @@ export default function Home() {
 
   useEffect(() => {
     if (activeStage?.name === 'Profiling' && activeStage?.status === 'human_intervention_required' && !edaData) {
-      fetch(`http://127.0.0.1:8000/api/runs/${runId}/eda`)
+      fetch(`${API_URL}/api/runs/${runId}/eda`)
         .then(res => res.json())
         .then(data => setEdaData(data))
         .catch(e => console.error("EDA not ready yet", e));
@@ -103,7 +116,7 @@ export default function Home() {
     if (isPolling && runId) {
       interval = setInterval(async () => {
         try {
-          const res = await fetch(`http://127.0.0.1:8000/api/runs/${runId}`);
+          const res = await fetch(`${API_URL}/api/runs/${runId}`);
           if (res.ok) {
             const data = await res.json();
             setStages(data.stages);
@@ -133,7 +146,7 @@ export default function Home() {
   useEffect(() => {
     if (!runId) return;
     setLogs([]);
-    const ws = new WebSocket(`ws://127.0.0.1:8000/api/runs/${runId}/ws`);
+    const ws = new WebSocket(getWsUrl(runId));
     ws.onmessage = (event) => setLogs(prev => [...prev, event.data]);
     return () => ws.close();
   }, [runId]);
@@ -155,7 +168,16 @@ export default function Home() {
           
           <div className="bg-white w-full rounded-3xl p-8 md:p-12 shadow-xl border border-neutral-200 relative overflow-hidden group">
             <h2 className="text-3xl font-semibold text-neutral-900 mb-2" style={{ fontFamily: "var(--font-instrument-serif), serif", fontStyle: "italic", fontWeight: 400 }}>Run Configuration</h2>
-            <p className="text-sm text-neutral-500 mb-8 font-medium">Define your objective and attach data to ignite the orchestration process.</p>
+            <p className="text-sm text-neutral-500 mb-4 font-medium">Define your objective and attach data to ignite the orchestration process.</p>
+            {API_URL.includes("127.0.0.1") && (
+              <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium flex gap-3 items-start shadow-sm">
+                <svg className="w-5 h-5 shrink-0 mt-0.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold">Missing Environment Variable</span>
+                  <span>The frontend is trying to connect to <code>{API_URL}</code>. This will fail on mobile devices because 127.0.0.1 is the device itself. Please set <code>NEXT_PUBLIC_API_URL</code> in Vercel to your Render backend URL and redeploy.</span>
+                </div>
+              </div>
+            )}
             
             <form onSubmit={startNewRun} className="relative z-10 flex flex-col gap-6">
               <div className="flex flex-col gap-2">
@@ -383,7 +405,7 @@ export default function Home() {
                     </div>
                   </div>
                   <a 
-                    href={`http://127.0.0.1:8000/api/runs/${runId}/download`}
+                    href={`${API_URL}/api/runs/${runId}/download`}
                     className="w-full h-14 rounded-full text-white bg-[#0b0f1a] shadow-lg font-medium text-[14px] flex items-center justify-center gap-3 transition-all hover:bg-black hover:shadow-xl active:scale-[0.99]"
                   >
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>

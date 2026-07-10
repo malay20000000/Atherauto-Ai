@@ -21,11 +21,11 @@ def acquire_data(task_spec: dict, run_id: str = "default") -> dict:
     log_agent_thought(run_id, "DATA_ACQ", f"-> Task Type: {task_type}", delay=0.2)
     log_agent_thought(run_id, "DATA_ACQ", f"-> Target: {target}", delay=0.4)
     
-    # Generate 150 rows of intelligent mock data
+    # Generate 400 rows of intelligent mock data with heavy noise
     np.random.seed(42)
     
     data = []
-    for _ in range(150):
+    for _ in range(400):
         if domain.lower() in ['finance', 'banking', 'fraud']:
             row = {
                 'transaction_amount': round(np.random.exponential(100), 2),
@@ -56,22 +56,22 @@ def acquire_data(task_spec: dict, run_id: str = "default") -> dict:
     if task_type == 'classification':
         if 'transaction_amount' in df.columns:
             base_target = (df['transaction_amount'] > 200).astype(int)
-            # Flip 10% of the labels to simulate real-world noise (prevents 1.0 accuracy)
-            noise = np.random.choice([0, 1], size=150, p=[0.90, 0.10])
+            # Flip 35% of the labels to simulate heavy real-world noise (prevents 1.0 accuracy)
+            noise = np.random.choice([0, 1], size=400, p=[0.65, 0.35])
             df[target] = base_target ^ noise
         else:
             # For random choice, add a slight bias based on a feature to give it *some* signal
             base = (df[df.columns[1]] > df[df.columns[1]].median()).astype(int)
-            noise = np.random.choice([0, 1], size=150, p=[0.85, 0.15])
+            noise = np.random.choice([0, 1], size=400, p=[0.60, 0.40])
             df[target] = base ^ noise
     else: # regression
         if 'square_footage' in df.columns:
             # Increase noise drastically so R2 is realistic (~0.8-0.9) instead of 0.999
-            df[target] = df['square_footage'] * 150 + np.random.randn(150) * 80000
+            df[target] = df['square_footage'] * 150 + np.random.randn(400) * 150000
         else:
             # Multiply by standard deviation to scale noise appropriately
             feature_std = df[df.columns[1]].std()
-            df[target] = df[df.columns[1]] * 2.5 + np.random.randn(150) * feature_std * 2.0
+            df[target] = df[df.columns[1]] * 2.5 + np.random.randn(400) * feature_std * 5.0
             
     log_agent_thought(run_id, "DATA_ACQ", f"-> Generated {len(df)} rows and {len(df.columns)} columns.", delay=0.8)
 
