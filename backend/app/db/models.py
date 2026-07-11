@@ -57,11 +57,18 @@ class Artifact(Base):
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./aao.db")
 
 connect_args = {}
+engine_kwargs = {}
 if DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False, "timeout": 30}
+else:
+    engine_kwargs = {
+        "pool_size": 20,
+        "max_overflow": 30,
+        "pool_timeout": 60
+    }
 
 engine = create_engine(
-    DATABASE_URL, connect_args=connect_args
+    DATABASE_URL, connect_args=connect_args, **engine_kwargs
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
