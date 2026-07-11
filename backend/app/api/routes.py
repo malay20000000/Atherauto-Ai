@@ -186,7 +186,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
         
-    stages = db.query(Stage).filter(Stage.run_id == run_id).all()
+    stages = db.query(Stage).filter(Stage.run_id == run_id).order_by(Stage.id.asc()).all()
     
     return {
         "run_id": run.id,
